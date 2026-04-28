@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz — Гравець</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c5cfc;
+    --accent2: #fc5c7d;
+    --green: #2ee89a;
+    --yellow: #ffd166;
+    --red: #fc5c7d;
+    --text: #f0f0f8;
+    --muted: rgba(240,240,248,0.5);
+    --font-head: 'Unbounded', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: 50%; transform: translateX(-50%);
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(124,92,252,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 480px;
+    position: relative;
+    z-index: 1;
+    animation: fadeUp 0.4s ease;
+  }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+
+  .logo { font-family: var(--font-head); font-size: 1rem; font-weight: 900; color: var(--muted); margin-bottom: 1.5rem; }
+  .logo span { color: var(--accent); }
+
+  h1 { font-family: var(--font-head); font-size: 1.3rem; font-weight: 900; margin-bottom: 0.5rem; }
+  .subtitle { color: var(--muted); font-size: 0.85rem; margin-bottom: 1.5rem; }
+
+  input[type="text"], input[type="number"] {
+    width: 100%; padding: 0.85rem 1rem;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+
+  .btn {
+    width: 100%; padding: 1rem;
+    font-family: var(--font-head); font-weight: 700; font-size: 0.9rem;
+    border: none; border-radius: 12px; cursor: pointer;
+    transition: all 0.2s; letter-spacing: 0.5px;
+  }
+  .btn-primary {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 0 30px rgba(124,92,252,0.3);
+  }
+  .btn-primary:hover { box-shadow: 0 0 40px rgba(124,92,252,0.5); transform: translateY(-1px); }
+
+  /* Waiting room */
+  .waiting-room { text-align: center; padding: 1rem 0; }
+  .avatar {
+    width: 80px; height: 80px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    margin: 0 auto 1rem;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-head); font-size: 1.8rem; font-weight: 900;
+  }
+  .player-name-display { font-family: var(--font-head); font-size: 1.2rem; font-weight: 900; margin-bottom: 0.5rem; }
+  .wait-text { color: var(--muted); font-size: 0.9rem; }
+  .pulse { animation: pulse 1.5s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.4; } }
+
+  /* Question */
+  .q-screen { }
+  .q-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .q-badge {
+    font-family: var(--font-head); font-size: 0.7rem; font-weight: 700;
+    background: var(--accent); color: #fff;
+    padding: 0.3rem 0.8rem; border-radius: 20px;
+  }
+  .q-timer {
+    font-family: var(--font-head); font-size: 1.5rem; font-weight: 900;
+    color: var(--yellow);
+  }
+  .q-text {
+    font-size: 1rem; font-weight: 500; line-height: 1.5;
+    background: var(--surface2); border-radius: 12px;
+    padding: 1rem 1.25rem; margin-bottom: 1.5rem;
+  }
+
+  .answers { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ans-btn {
+    padding: 1rem 0.75rem;
+    border-radius: 12px; border: none; cursor: pointer;
+    font-family: var(--font-body); font-weight: 600; font-size: 0.85rem;
+    line-height: 1.3; text-align: center;
+    transition: all 0.15s; display: flex; flex-direction: column;
+    align-items: center; gap: 6px;
+    min-height: 80px; justify-content: center;
+  }
+  .ans-btn:active { transform: scale(0.96); }
+  .ans-btn:disabled { opacity: 0.5; cursor: default; }
+  .ans-btn .ans-letter {
+    font-family: var(--font-head); font-weight: 900; font-size: 1.1rem;
+  }
+
+  .ans-btn:nth-child(1) { background: rgba(46,232,154,0.15); color: #2ee89a; border: 1px solid rgba(46,232,154,0.3); }
+  .ans-btn:nth-child(2) { background: rgba(252,92,125,0.15); color: #fc5c7d; border: 1px solid rgba(252,92,125,0.3); }
+  .ans-btn:nth-child(3) { background: rgba(124,92,252,0.15); color: #7c5cfc; border: 1px solid rgba(124,92,252,0.3); }
+  .ans-btn:nth-child(4) { background: rgba(255,209,102,0.15); color: #ffd166; border: 1px solid rgba(255,209,102,0.3); }
+
+  .ans-btn.selected { outline: 3px solid #fff; opacity: 1 !important; transform: scale(1.03); }
+  .ans-btn.correct-ans { outline: 3px solid var(--green); opacity: 1 !important; }
+  .ans-btn.wrong-ans { opacity: 0.3; }
+
+  /* Result after question */
+  .result-block { text-align: center; padding: 1.5rem 0; }
+  .result-icon { font-size: 4rem; margin-bottom: 0.75rem; }
+  .result-title { font-family: var(--font-head); font-size: 1.2rem; font-weight: 900; margin-bottom: 0.5rem; }
+  .result-points { font-size: 0.9rem; color: var(--muted); }
+  .result-points strong { color: var(--green); font-weight: 700; }
+  .result-rank { margin-top: 1rem; font-size: 0.85rem; color: var(--muted); }
+  .result-rank strong { color: var(--yellow); font-family: var(--font-head); }
+
+  /* Final */
+  .final-block { text-align: center; padding: 1rem 0; }
+  .final-score { font-family: var(--font-head); font-size: 3rem; font-weight: 900; color: var(--accent); line-height: 1; }
+  .final-rank-num { font-family: var(--font-head); font-size: 5rem; font-weight: 900; margin: 0.5rem 0; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  @media (max-width: 360px) {
+    .answers { grid-template-columns: 1fr; }
+    .card { padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Quiz<span>UA</span></div>
+
+  <!-- JOIN -->
+  <div class="screen active" id="sJoin">
+    <h1>Приєднатись до гри</h1>
+    <p class="subtitle">Введіть код гри та ваше ім'я</p>
+    <input type="number" id="codeInput" placeholder="Код гри (4 цифри)" maxlength="4">
+    <input type="text" id="nameInput" placeholder="Ваше ім'я або нікнейм" maxlength="20">
+    <button class="btn btn-primary" onclick="joinGame()">Приєднатись →</button>
+  </div>
+
+  <!-- WAITING -->
+  <div class="screen" id="sWait">
+    <div class="waiting-room">
+      <div class="avatar" id="waitAvatar"></div>
+      <div class="player-name-display" id="waitName"></div>
+      <div class="wait-text pulse">Очікуємо початку гри...</div>
+    </div>
+  </div>
+
+  <!-- QUESTION -->
+  <div class="screen" id="sQuestion">
+    <div class="q-meta">
+      <div class="q-badge" id="qBadge">Питання 1</div>
+      <div class="q-timer" id="qTimer">30</div>
+    </div>
+    <div class="q-text" id="qText"></div>
+    <div class="answers" id="answersBtns"></div>
+  </div>
+
+  <!-- ANSWERED -->
+  <div class="screen" id="sAnswered">
+    <div class="waiting-room">
+      <div style="font-size:3rem;margin-bottom:1rem;">✅</div>
+      <div style="font-family:var(--font-head);font-size:1rem;font-weight:700;margin-bottom:0.5rem;">Відповідь прийнята!</div>
+      <div class="wait-text pulse">Очікуємо інших гравців...</div>
+    </div>
+  </div>
+
+  <!-- RESULT per question -->
+  <div class="screen" id="sResult">
+    <div class="result-block">
+      <div class="result-icon" id="resultIcon"></div>
+      <div class="result-title" id="resultTitle"></div>
+      <div class="result-points" id="resultPoints"></div>
+      <div class="result-rank" id="resultRank"></div>
+    </div>
+  </div>
+
+  <!-- FINAL -->
+  <div class="screen" id="sFinal">
+    <div class="final-block">
+      <div style="font-size:2rem;margin-bottom:0.5rem;">🎉</div>
+      <h1 style="margin-bottom:0.5rem;">Гра завершена!</h1>
+      <div style="color:var(--muted);font-size:0.85rem;margin-bottom:1.5rem;">Ваш результат</div>
+      <div class="final-rank-num" id="finalRank"></div>
+      <div style="color:var(--muted);font-size:0.9rem;margin-bottom:0.5rem;">місце</div>
+      <div class="final-score" id="finalScore"></div>
+      <div style="color:var(--muted);font-size:0.8rem;margin-top:0.5rem;">балів</div>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, onValue, update } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ============================================================
+// 🔧 НАЛАШТУВАННЯ FIREBASE — вставте свої дані тут
+// ============================================================
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT.firebaseapp.com",
+  databaseURL: "https://YOUR_PROJECT-default-rtdb.europe-west1.firebasedatabase.io",
+  projectId: "YOUR_PROJECT",
+  storageBucket: "YOUR_PROJECT.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId: "YOUR_APP_ID"
+};
+// ============================================================
+
+const QUESTIONS = [
+  { q: "Як визначається предмет закупівлі в разі закупівлі робіт?", opts: ["За окремими об'єктами будівництва","За 4-м знаком ДК 021:2015","За обсягами будівництва","За 2-м знаком ДК 021:2015"], correct: 0 },
+  { q: "Чи має замовник право визначити іншу уповноважену особу в разі відсутності основної?", opts: ["Ні","Так, за погодженням з Уповноваженим органом","Ні, закупівлі передаються до ЦЗО","Так"], correct: 3 },
+  { q: "Хто є переможцем спрощеної закупівлі?", opts: ["Учасник з найвигіднішою пропозицією за тендерною документацією","Учасник, що відповідає вимогам оголошення","Учасник, чия пропозиція відповідає оголошенню, визнана найбільш вигідною та якому повідомлено про намір укласти договір","Учасник з найнижчою ціною"], correct: 2 },
+  { q: "В який строк розміщується рішення органу оскарження в електронній системі закупівель?", opts: ["Протягом 10 робочих днів","Не раніше 10 робочих днів","Не раніше 15 робочих днів","Протягом трьох робочих днів"], correct: 3 },
+  { q: "Який характер має рішення робочої групи з розгляду тендерних пропозицій?", opts: ["Обов'язковий","Обов'язковий за погодженням керівника","Дорадчий","Законом не визначено"], correct: 2 },
+  { q: "Чи є спрощена закупівля процедурою закупівлі за Законом?", opts: ["Так, бо передбачає аукціон","Ні","Так, є конкурентною процедурою","Так, бо передбачає конкурентний вибір"], correct: 1 },
+  { q: "Яка особливість переговорної процедури закупівлі?", opts: ["До 50 тис. грн","За погодженням з Уповноваженим органом","За погодженням з КМУ","Як виняток за умовами ч.2 ст.40 Закону"], correct: 3 },
+  { q: "Хто може стати учасником процедури закупівлі?", opts: ["Виключно юридичні особи","Виключно ФОП","Виключно об'єднання юридичних осіб-нерезидентів","Фізична особа, ФОП чи юридична особа — резидент або нерезидент, у т.ч. об'єднання учасників"], correct: 3 },
+  { q: "Вартісні межі спрощеної закупівлі товарів та послуг?", opts: ["50–200 тис. грн (п.1-3) та 50 тис.–1 млн грн (п.4)","0–200 тис. грн (п.1-3) та до 1 млн грн (п.4)","200–500 тис. грн (п.1-3) та до 1 млн грн (п.4)","50 тис.–1 млн грн"], correct: 0 },
+  { q: "Поточний ремонт — це закупівля робіт?", opts: ["Ні, товар","Так, робіт","Залежно від вартості","Ні, послуг"], correct: 1 },
+  { q: "Чи тягне порушення строків розгляду тендерної пропозиції накладення штрафу?", opts: ["Ні","Так","Так, лише при виявленні правоохоронцями","Так, лише при виявленні адміністратором системи"], correct: 1 }
+];
+
+const QUESTION_TIME = 30;
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+let gameCode = '';
+let playerName = '';
+let playerId = '';
+let currentQ = -1;
+let answered = false;
+let answerTime = 0;
+let timerInterval = null;
+let myScore = 0;
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+window.joinGame = async function() {
+  const code = document.getElementById('codeInput').value.trim();
+  const name = document.getElementById('nameInput').value.trim();
+  if (!code || code.length !== 4) { alert('Введіть 4-значний код гри'); return; }
+  if (!name) { alert('Введіть ваше ім\'я'); return; }
+
+  gameCode = code;
+  playerName = name;
+  playerId = 'p_' + Math.random().toString(36).substr(2, 8);
+
+  const gameSnap = await get(ref(db, `games/${gameCode}`));
+  if (!gameSnap.exists()) { alert('Гру не знайдено. Перевірте код.'); return; }
+
+  await set(ref(db, `games/${gameCode}/players/${playerId}`), {
+    name: playerName,
+    score: 0,
+    joined: Date.now()
+  });
+
+  const initials = name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  document.getElementById('waitAvatar').textContent = initials;
+  document.getElementById('waitName').textContent = name;
+  showScreen('sWait');
+
+  listenGame();
+};
+
+function listenGame() {
+  onValue(ref(db, `games/${gameCode}`), snap => {
+    const game = snap.val();
+    if (!game) return;
+
+    if (game.status === 'question') {
+      const qIdx = game.currentQuestion;
+      if (qIdx !== currentQ) {
+        currentQ = qIdx;
+        answered = false;
+        showQuestion(qIdx, game.questionStart);
+      }
+    } else if (game.status === 'reveal') {
+      if (!answered) {
+        showResult(false, 0);
+      }
+    } else if (game.status === 'finished') {
+      showFinal(snap.val().players);
+    }
+  });
+}
+
+function showQuestion(idx, startTime) {
+  clearInterval(timerInterval);
+  const q = QUESTIONS[idx];
+  showScreen('sQuestion');
+  document.getElementById('qBadge').textContent = `Питання ${idx + 1}/${QUESTIONS.length}`;
+  document.getElementById('qText').textContent = q.q;
+
+  const labels = ['А', 'Б', 'В', 'Г'];
+  document.getElementById('answersBtns').innerHTML = q.opts.map((o, i) =>
+    `<button class="ans-btn" onclick="submitAnswer(${i})">
+      <span class="ans-letter">${labels[i]}</span>
+      <span>${o}</span>
+    </button>`
+  ).join('');
+
+  const elapsed = (Date.now() - startTime) / 1000;
+  let left = Math.max(0, QUESTION_TIME - elapsed);
+  document.getElementById('qTimer').textContent = Math.ceil(left);
+
+  timerInterval = setInterval(() => {
+    left -= 0.1;
+    document.getElementById('qTimer').textContent = Math.max(0, Math.ceil(left));
+    if (left <= 0) {
+      clearInterval(timerInterval);
+      if (!answered) showScreen('sAnswered');
+    }
+  }, 100);
+}
+
+window.submitAnswer = function(idx) {
+  if (answered) return;
+  answered = true;
+  clearInterval(timerInterval);
+
+  const timeStr = document.getElementById('qTimer').textContent;
+  answerTime = parseInt(timeStr) || 0;
+
+  set(ref(db, `games/${gameCode}/answers/${currentQ}/${playerId}`), {
+    answer: idx,
+    time: answerTime
+  });
+
+  showScreen('sAnswered');
+
+  // Listen for reveal
+  const q = QUESTIONS[currentQ];
+  const isCorrect = idx === q.correct;
+  const points = isCorrect ? Math.round((answerTime / QUESTION_TIME) * 500) + 500 : 0;
+  if (isCorrect) myScore += points;
+
+  onValue(ref(db, `games/${gameCode}/status`), snap => {
+    if (snap.val() === 'reveal') {
+      showResult(isCorrect, points);
+    }
+  }, { onlyOnce: false });
+};
+
+function showResult(correct, points) {
+  showScreen('sResult');
+  document.getElementById('resultIcon').textContent = correct ? '🎯' : '❌';
+  document.getElementById('resultTitle').textContent = correct ? 'Правильно!' : 'Неправильно';
+  document.getElementById('resultPoints').innerHTML = correct
+    ? `+<strong>${points}</strong> балів за цю відповідь`
+    : `Правильна відповідь виділена у ведучого`;
+  document.getElementById('resultRank').innerHTML = `Загальний рахунок: <strong>${myScore} балів</strong>`;
+}
+
+function showFinal(players) {
+  if (!players) return;
+  const sorted = Object.values(players).sort((a, b) => (b.score || 0) - (a.score || 0));
+  const myIdx = sorted.findIndex(p => p.name === playerName);
+  const myRank = myIdx + 1;
+  const rankEmoji = myRank === 1 ? '🥇' : myRank === 2 ? '🥈' : myRank === 3 ? '🥉' : `#${myRank}`;
+
+  showScreen('sFinal');
+  document.getElementById('finalRank').textContent = rankEmoji;
+  document.getElementById('finalScore').textContent = myScore;
+}
+</script>
+</body>
+</html>

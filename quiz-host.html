@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quiz Host — Публічні закупівлі</title>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: rgba(255,255,255,0.08);
+    --accent: #7c5cfc;
+    --accent2: #fc5c7d;
+    --green: #2ee89a;
+    --yellow: #ffd166;
+    --red: #fc5c7d;
+    --text: #f0f0f8;
+    --muted: rgba(240,240,248,0.5);
+    --font-head: 'Unbounded', sans-serif;
+    --font-body: 'Inter', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background glow */
+  body::before {
+    content: '';
+    position: fixed;
+    top: -200px; left: 50%; transform: translateX(-50%);
+    width: 800px; height: 800px;
+    background: radial-gradient(circle, rgba(124,92,252,0.15) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 2rem; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-family: var(--font-head); font-size: 1.1rem; font-weight: 900; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+  .game-code {
+    font-family: var(--font-head); font-size: 2rem; font-weight: 900;
+    color: var(--accent);
+    background: rgba(124,92,252,0.1);
+    border: 1px solid rgba(124,92,252,0.3);
+    padding: 0.4rem 1.2rem;
+    border-radius: 12px;
+    letter-spacing: 4px;
+  }
+  .game-code small { display: block; font-family: var(--font-body); font-size: 0.65rem; font-weight: 500; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 2px; }
+
+  /* Screens */
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* Lobby */
+  .lobby-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+  .lobby-info { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; }
+  .lobby-info h2 { font-family: var(--font-head); font-size: 1rem; font-weight: 700; margin-bottom: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .join-url { background: var(--surface2); border-radius: 12px; padding: 1rem 1.25rem; font-family: monospace; font-size: 0.85rem; color: var(--accent); word-break: break-all; margin-bottom: 1rem; }
+  .qr-hint { font-size: 0.8rem; color: var(--muted); }
+
+  .players-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 2rem; }
+  .players-panel h2 { font-family: var(--font-head); font-size: 1rem; font-weight: 700; margin-bottom: 1rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .players-count { font-family: var(--font-head); font-size: 3rem; font-weight: 900; color: var(--green); line-height: 1; margin-bottom: 0.5rem; }
+  .players-count small { font-family: var(--font-body); font-size: 0.9rem; color: var(--muted); font-weight: 400; }
+  .players-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1rem; max-height: 200px; overflow-y: auto; }
+  .player-chip {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 6px 14px; font-size: 0.85rem;
+    animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes popIn { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  /* Buttons */
+  .btn {
+    font-family: var(--font-head); font-weight: 700; font-size: 0.9rem;
+    padding: 0.9rem 2rem; border-radius: 12px; border: none; cursor: pointer;
+    transition: all 0.2s; letter-spacing: 0.5px;
+    display: inline-flex; align-items: center; gap: 0.5rem;
+  }
+  .btn-primary {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 0 30px rgba(124,92,252,0.4);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 40px rgba(124,92,252,0.6); }
+  .btn-primary:active { transform: translateY(0); }
+  .btn-danger { background: var(--red); color: #fff; }
+  .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+
+  .btn-row { display: flex; gap: 1rem; margin-top: 1.5rem; align-items: center; }
+
+  /* Question screen */
+  .q-header {
+    display: flex; align-items: center; gap: 1rem; margin-bottom: 2rem;
+  }
+  .q-num {
+    font-family: var(--font-head); font-size: 0.8rem; font-weight: 700;
+    background: var(--accent); color: #fff;
+    padding: 0.4rem 1rem; border-radius: 20px;
+    white-space: nowrap;
+  }
+  .timer-bar-wrap { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+  .timer-bar { height: 100%; background: linear-gradient(90deg, var(--green), var(--accent)); border-radius: 4px; transition: width 0.1s linear; }
+  .timer-num {
+    font-family: var(--font-head); font-size: 1.5rem; font-weight: 900;
+    color: var(--yellow); min-width: 2ch; text-align: right;
+  }
+
+  .question-text {
+    font-family: var(--font-head); font-size: 1.3rem; font-weight: 700;
+    line-height: 1.5; margin-bottom: 2rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 16px; padding: 1.5rem 2rem;
+  }
+
+  .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem; }
+  .answer-card {
+    border-radius: 14px; padding: 1rem 1.25rem;
+    font-size: 0.95rem; font-weight: 500; line-height: 1.4;
+    display: flex; align-items: flex-start; gap: 0.75rem;
+  }
+  .answer-card .letter {
+    font-family: var(--font-head); font-weight: 900; font-size: 1rem;
+    min-width: 28px; height: 28px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .answer-card:nth-child(1) { background: rgba(46,232,154,0.12); border: 1px solid rgba(46,232,154,0.3); }
+  .answer-card:nth-child(1) .letter { background: rgba(46,232,154,0.2); color: var(--green); }
+  .answer-card:nth-child(2) { background: rgba(252,92,125,0.12); border: 1px solid rgba(252,92,125,0.3); }
+  .answer-card:nth-child(2) .letter { background: rgba(252,92,125,0.2); color: var(--red); }
+  .answer-card:nth-child(3) { background: rgba(124,92,252,0.12); border: 1px solid rgba(124,92,252,0.3); }
+  .answer-card:nth-child(3) .letter { background: rgba(124,92,252,0.2); color: var(--accent); }
+  .answer-card:nth-child(4) { background: rgba(255,209,102,0.12); border: 1px solid rgba(255,209,102,0.3); }
+  .answer-card:nth-child(4) .letter { background: rgba(255,209,102,0.2); color: var(--yellow); }
+  .answer-card.correct { outline: 3px solid var(--green); }
+
+  /* Stats bar */
+  .stats-row { display: flex; gap: 1rem; margin-bottom: 1.5rem; }
+  .stat-box { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1rem 1.5rem; flex: 1; text-align: center; }
+  .stat-box .val { font-family: var(--font-head); font-size: 1.8rem; font-weight: 900; }
+  .stat-box .lbl { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+
+  /* Results screen */
+  .podium { display: flex; align-items: flex-end; justify-content: center; gap: 1rem; margin: 2rem 0; }
+  .podium-place {
+    display: flex; flex-direction: column; align-items: center; gap: 0.75rem;
+  }
+  .podium-bar {
+    width: 120px; border-radius: 12px 12px 0 0;
+    background: linear-gradient(180deg, var(--accent), rgba(124,92,252,0.3));
+    display: flex; align-items: flex-end; justify-content: center; padding-bottom: 0.5rem;
+    font-family: var(--font-head); font-weight: 900; font-size: 1.5rem;
+    color: rgba(255,255,255,0.3);
+  }
+  .podium-place:nth-child(1) .podium-bar { height: 180px; background: linear-gradient(180deg, var(--yellow), rgba(255,209,102,0.2)); }
+  .podium-place:nth-child(2) .podium-bar { height: 130px; }
+  .podium-place:nth-child(3) .podium-bar { height: 90px; background: linear-gradient(180deg, #cd7f32, rgba(205,127,50,0.2)); }
+  .podium-name { font-family: var(--font-head); font-size: 0.8rem; font-weight: 700; text-align: center; max-width: 120px; }
+  .podium-score { font-size: 0.8rem; color: var(--muted); }
+
+  .leaderboard { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; overflow: hidden; }
+  .lb-row {
+    display: flex; align-items: center; padding: 1rem 1.5rem; gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-rank { font-family: var(--font-head); font-weight: 900; font-size: 1.2rem; min-width: 2rem; color: var(--muted); }
+  .lb-rank.gold { color: var(--yellow); }
+  .lb-rank.silver { color: #c0c0c0; }
+  .lb-rank.bronze { color: #cd7f32; }
+  .lb-name { flex: 1; font-weight: 600; }
+  .lb-score { font-family: var(--font-head); font-weight: 700; color: var(--accent); }
+  .lb-correct { font-size: 0.8rem; color: var(--muted); }
+
+  /* Reveal overlay */
+  .reveal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 100;
+    background: rgba(10,10,15,0.9);
+    align-items: center; justify-content: center;
+    flex-direction: column; gap: 1rem;
+  }
+  .reveal-overlay.show { display: flex; }
+  .reveal-emoji { font-size: 5rem; animation: bounce 0.5s ease; }
+  .reveal-text { font-family: var(--font-head); font-size: 1.5rem; font-weight: 900; text-align: center; }
+  @keyframes bounce { 0%,100% { transform: scale(1); } 50% { transform: scale(1.2); } }
+
+  .answered-count { font-size: 0.9rem; color: var(--muted); }
+
+  @media (max-width: 700px) {
+    .lobby-grid { grid-template-columns: 1fr; }
+    .answers-grid { grid-template-columns: 1fr; }
+    .podium { gap: 0.5rem; }
+    .podium-bar { width: 80px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">Quiz<span>UA</span> — Ведучий</div>
+    <div class="game-code">
+      <small>Код гри</small>
+      <span id="codeDisplay">----</span>
+    </div>
+  </div>
+
+  <!-- LOBBY -->
+  <div class="screen active" id="screenLobby">
+    <div class="lobby-grid">
+      <div class="lobby-info">
+        <h2>Посилання для студентів</h2>
+        <div class="join-url" id="joinUrl">Завантаження...</div>
+        <p class="qr-hint">Надайте це посилання студентам. Вони введуть код гри та своє ім'я.</p>
+        <div class="btn-row">
+          <button class="btn btn-secondary" onclick="copyLink()">📋 Копіювати</button>
+        </div>
+      </div>
+      <div class="players-panel">
+        <h2>Гравці онлайн</h2>
+        <div class="players-count" id="playersCount">0 <small>гравців</small></div>
+        <div class="players-list" id="playersList"></div>
+      </div>
+    </div>
+    <div class="btn-row" style="margin-top:2rem;">
+      <button class="btn btn-primary" onclick="startGame()">▶ Розпочати гру</button>
+      <span style="color:var(--muted);font-size:0.85rem;" id="lobbyStatus">Очікуємо гравців...</span>
+    </div>
+  </div>
+
+  <!-- QUESTION -->
+  <div class="screen" id="screenQuestion">
+    <div class="q-header">
+      <div class="q-num" id="qNum">Питання 1/11</div>
+      <div class="timer-bar-wrap"><div class="timer-bar" id="timerBar" style="width:100%"></div></div>
+      <div class="timer-num" id="timerNum">30</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-box"><div class="val" id="statAnswered">0</div><div class="lbl">Відповіли</div></div>
+      <div class="stat-box"><div class="val" id="statTotal">0</div><div class="lbl">Всього гравців</div></div>
+      <div class="stat-box"><div class="val" id="statLeft">0</div><div class="lbl">Очікуємо</div></div>
+    </div>
+
+    <div class="question-text" id="questionText"></div>
+    <div class="answers-grid" id="answersGrid"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-danger" onclick="stopQuestion()">⏹ Зупинити</button>
+      <span class="answered-count" id="answeredInfo"></span>
+    </div>
+  </div>
+
+  <!-- REVEAL -->
+  <div class="screen" id="screenReveal">
+    <div class="question-text" id="revealQuestion"></div>
+    <div class="answers-grid" id="revealAnswers"></div>
+    <div class="stats-row" style="margin-top:1.5rem;">
+      <div class="stat-box"><div class="val" id="revealCorrect" style="color:var(--green)">0</div><div class="lbl">Правильно</div></div>
+      <div class="stat-box"><div class="val" id="revealWrong" style="color:var(--red)">0</div><div class="lbl">Неправильно</div></div>
+      <div class="stat-box"><div class="val" id="revealSkipped" style="color:var(--muted)">0</div><div class="lbl">Не відповіли</div></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="nextBtn" onclick="nextQuestion()">Наступне питання →</button>
+    </div>
+  </div>
+
+  <!-- LEADERBOARD (mid-game) -->
+  <div class="screen" id="screenLeaderboard">
+    <h2 style="font-family:var(--font-head);font-size:1.5rem;font-weight:900;margin-bottom:1.5rem;">🏆 Рейтинг після питання <span id="lbAfter"></span></h2>
+    <div class="leaderboard" id="midLeaderboard"></div>
+    <div class="btn-row" style="margin-top:1.5rem;">
+      <button class="btn btn-primary" id="continueBtn" onclick="continueToNext()">Продовжити →</button>
+    </div>
+  </div>
+
+  <!-- FINAL -->
+  <div class="screen" id="screenFinal">
+    <h2 style="font-family:var(--font-head);font-size:2rem;font-weight:900;margin-bottom:0.5rem;text-align:center;">🎉 Гра завершена!</h2>
+    <p style="color:var(--muted);text-align:center;margin-bottom:2rem;">Фінальний рейтинг</p>
+    <div class="leaderboard" id="finalLeaderboard"></div>
+    <div class="btn-row" style="margin-top:2rem;justify-content:center;">
+      <button class="btn btn-primary" onclick="resetGame()">🔄 Нова гра</button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getDatabase, ref, set, get, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+
+// ============================================================
+// 🔧 НАЛАШТУВАННЯ FIREBASE — вставте свої дані тут
+// ============================================================
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+ // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBREpJieNFT0s09C-OvPpIxaPkaQRY4wrs",
+  authDomain: "best-purchasing-manage.firebaseapp.com",
+  databaseURL: "https://best-purchasing-manage-default-rtdb.europe-west1.firebasedatabase.app",
+  projectId: "best-purchasing-manage",
+  storageBucket: "best-purchasing-manage.firebasestorage.app",
+  messagingSenderId: "218253056849",
+  appId: "1:218253056849:web:f6dc3f3a84db785601d170",
+  measurementId: "G-KWKF1BD8M7"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+  appId: "YOUR_APP_ID"
+};
+// ============================================================
+
+const QUESTIONS = [
+  {
+    q: "Як визначається предмет закупівлі в разі закупівлі робіт?",
+    opts: [
+      "За окремими об'єктами будівництва",
+      "За 4-м знаком національного класифікатора України ДК 021:2015",
+      "За обсягами будівництва",
+      "За 2-м знаком національного класифікатора України ДК 021:2015"
+    ],
+    correct: 0 // А
+  },
+  {
+    q: "Чи має замовник право в разі відсутності однієї уповноваженої особи визначити іншу уповноважену особу?",
+    opts: [
+      "Ні",
+      "Так, за погодженням з Уповноваженим органом",
+      "Ні, закупівлі передаються до централізованої закупівельної організації",
+      "Так"
+    ],
+    correct: 3 // Г
+  },
+  {
+    q: "Хто є переможцем спрощеної закупівлі?",
+    opts: [
+      "Учасник, пропозиція якого відповідає тендерній документації і визнана найбільш економічно вигідною",
+      "Учасник, пропозиція якого відповідає всім вимогам оголошення про спрощену закупівлю",
+      "Учасник, пропозиція якого відповідає оголошенню, визнана найбільш економічно вигідною та якому повідомлено про намір укласти договір",
+      "Учасник, який запропонував найнижчу ціну"
+    ],
+    correct: 2 // В
+  },
+  {
+    q: "В який строк орган оскарження розміщує рішення за результатами розгляду скарги в електронній системі закупівель?",
+    opts: [
+      "Протягом 10 робочих днів з дня прийняття рішення",
+      "Не раніше 10 робочих днів з дня прийняття рішення",
+      "Не раніше 15 робочих днів з дня прийняття рішення",
+      "Протягом трьох робочих днів з дня прийняття рішення"
+    ],
+    correct: 3 // Г
+  },
+  {
+    q: "Який характер має рішення робочої групи, що створена для розгляду тендерних пропозицій?",
+    opts: [
+      "Обов'язковий характер",
+      "Обов'язковий за умови погодження керівником",
+      "Дорадчий характер",
+      "Законом не визначено"
+    ],
+    correct: 2 // В
+  },
+  {
+    q: "Чи є спрощена закупівля процедурою закупівлі відповідно до Закону України «Про публічні закупівлі»?",
+    opts: [
+      "Так, тому що передбачає проведення аукціону",
+      "Ні, спрощена закупівля не є процедурою закупівлі",
+      "Так, спрощена закупівля є конкурентною процедурою",
+      "Так, тому що передбачає конкурентний вибір"
+    ],
+    correct: 1 // Б
+  },
+  {
+    q: "Яка особливість використання замовником переговорної процедури закупівлі?",
+    opts: [
+      "Використовується при вартості до 50 тисяч гривень",
+      "Використовується за погодженням з Уповноваженим органом",
+      "Використовується за погодженням з Кабінетом Міністрів України",
+      "Використовується як виняток відповідно до умов ч.2 ст.40 Закону"
+    ],
+    correct: 3 // Г
+  },
+  {
+    q: "Хто може стати учасником процедури закупівлі?",
+    opts: [
+      "Виключно юридичні особи",
+      "Виключно фізична особа-підприємець",
+      "Виключно об'єднання юридичних осіб-нерезидентів",
+      "Фізична особа, ФОП чи юридична особа — резидент або нерезидент, у т.ч. об'єднання учасників"
+    ],
+    correct: 3 // Г
+  },
+  {
+    q: "Які вартісні межі застосування спрощеної закупівлі при закупівлі товарів та послуг?",
+    opts: [
+      "Від 50 тис. грн до 200 тис. грн (п.1-3) та від 50 тис. грн до 1 млн грн (п.4)",
+      "Від 0 грн до 200 тис. грн (п.1-3) та до 1 млн грн (п.4)",
+      "Від 200 тис. грн до 500 тис. грн (п.1-3) та до 1 млн грн (п.4)",
+      "Від 50 тис. грн до 1 млн грн"
+    ],
+    correct: 0 // А
+  },
+  {
+    q: "Уповноваженій особі необхідно провести закупівлю поточного ремонту. Це буде закупівля робіт?",
+    opts: [
+      "Ні, це буде закупівля товару",
+      "Так, це буде закупівля робіт",
+      "Залежно від вартості — або робіт, або послуг",
+      "Ні, це буде закупівля послуг"
+    ],
+    correct: 1 // Б
+  },
+  {
+    q: "Чи тягне за собою накладення штрафу порушення строків розгляду тендерної пропозиції?",
+    opts: [
+      "Ні",
+      "Так",
+      "Так, виключно за умови виявлення порушення правоохоронними органами",
+      "Так, виключно за умови виявлення адміністратором електронної системи"
+    ],
+    correct: 1 // Б
+  }
+];
+
+const QUESTION_TIME = 30; // секунди
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// Генерація коду гри
+function makeCode() {
+  return Math.floor(1000 + Math.random() * 9000).toString();
+}
+
+let gameCode = localStorage.getItem('quizHostCode') || makeCode();
+localStorage.setItem('quizHostCode', gameCode);
+
+const gameRef = ref(db, `games/${gameCode}`);
+let players = {};
+let currentQ = 0;
+let timerInterval = null;
+let timeLeft = QUESTION_TIME;
+let answers = {};
+let showingLeaderboard = false;
+
+// Init
+document.getElementById('codeDisplay').textContent = gameCode;
+const playerUrl = window.location.href.replace('quiz-host.html', 'quiz-player.html');
+document.getElementById('joinUrl').textContent = playerUrl;
+
+// Watch players
+onValue(ref(db, `games/${gameCode}/players`), snap => {
+  players = snap.val() || {};
+  const names = Object.values(players).map(p => p.name || p);
+  document.getElementById('playersCount').innerHTML = `${names.length} <small>гравців</small>`;
+  const list = document.getElementById('playersList');
+  list.innerHTML = names.map(n => `<div class="player-chip">${n}</div>`).join('');
+  document.getElementById('statTotal').textContent = names.length;
+});
+
+// Watch answers for current question
+function watchAnswers() {
+  onValue(ref(db, `games/${gameCode}/answers/${currentQ}`), snap => {
+    answers = snap.val() || {};
+    const count = Object.keys(answers).length;
+    const total = Object.keys(players).length;
+    document.getElementById('statAnswered').textContent = count;
+    document.getElementById('statLeft').textContent = Math.max(0, total - count);
+    document.getElementById('answeredInfo').textContent = `${count} з ${total} відповіли`;
+    if (count >= total && total > 0) stopQuestion();
+  });
+}
+
+window.startGame = async function() {
+  await set(gameRef, {
+    status: 'playing',
+    currentQuestion: 0,
+    started: Date.now(),
+    players: players
+  });
+  showQuestion(0);
+};
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showQuestion(idx) {
+  currentQ = idx;
+  const q = QUESTIONS[idx];
+  showScreen('screenQuestion');
+  document.getElementById('qNum').textContent = `Питання ${idx + 1}/${QUESTIONS.length}`;
+  document.getElementById('questionText').textContent = q.q;
+
+  const labels = ['А', 'Б', 'В', 'Г'];
+  document.getElementById('answersGrid').innerHTML = q.opts.map((o, i) =>
+    `<div class="answer-card"><div class="letter">${labels[i]}</div><div>${o}</div></div>`
+  ).join('');
+
+  document.getElementById('statTotal').textContent = Object.keys(players).length;
+  document.getElementById('statAnswered').textContent = '0';
+  document.getElementById('statLeft').textContent = Object.keys(players).length;
+
+  set(ref(db, `games/${gameCode}/currentQuestion`), idx);
+  set(ref(db, `games/${gameCode}/questionStart`), Date.now());
+  set(ref(db, `games/${gameCode}/status`), 'question');
+
+  answers = {};
+  watchAnswers();
+  startTimer();
+}
+
+function startTimer() {
+  timeLeft = QUESTION_TIME;
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    document.getElementById('timerNum').textContent = timeLeft;
+    document.getElementById('timerBar').style.width = `${(timeLeft / QUESTION_TIME) * 100}%`;
+    if (timeLeft <= 0) stopQuestion();
+  }, 1000);
+}
+
+window.stopQuestion = function() {
+  clearInterval(timerInterval);
+  set(ref(db, `games/${gameCode}/status`), 'reveal');
+  showReveal();
+};
+
+function showReveal() {
+  const q = QUESTIONS[currentQ];
+  showScreen('screenReveal');
+  document.getElementById('revealQuestion').textContent = q.q;
+
+  const labels = ['А', 'Б', 'В', 'Г'];
+  document.getElementById('revealAnswers').innerHTML = q.opts.map((o, i) =>
+    `<div class="answer-card ${i === q.correct ? 'correct' : ''}"><div class="letter">${labels[i]}</div><div>${o}</div></div>`
+  ).join('');
+
+  // Count correct/wrong
+  let correct = 0, wrong = 0;
+  const total = Object.keys(players).length;
+  Object.values(answers).forEach(a => {
+    if (a.answer === q.correct) correct++; else wrong++;
+  });
+  document.getElementById('revealCorrect').textContent = correct;
+  document.getElementById('revealWrong').textContent = wrong;
+  document.getElementById('revealSkipped').textContent = total - correct - wrong;
+
+  // Update scores
+  Object.entries(answers).forEach(([uid, a]) => {
+    if (a.answer === q.correct) {
+      const bonus = Math.round((a.time / QUESTION_TIME) * 500) + 500;
+      const cur = players[uid]?.score || 0;
+      update(ref(db, `games/${gameCode}/players/${uid}`), { score: cur + bonus });
+      players[uid] = { ...players[uid], score: cur + bonus };
+    }
+  });
+
+  document.getElementById('nextBtn').textContent =
+    currentQ + 1 < QUESTIONS.length ? 'Показати рейтинг →' : '🏆 Фінальний рейтинг';
+}
+
+window.nextQuestion = function() {
+  showLeaderboard(false);
+};
+
+function showLeaderboard(final) {
+  const sorted = Object.values(players).sort((a, b) => (b.score || 0) - (a.score || 0));
+  const ranks = ['🥇', '🥈', '🥉'];
+
+  if (final) {
+    showScreen('screenFinal');
+    document.getElementById('finalLeaderboard').innerHTML = sorted.map((p, i) =>
+      `<div class="lb-row">
+        <div class="lb-rank ${i===0?'gold':i===1?'silver':i===2?'bronze':''}">${ranks[i] || (i+1)}</div>
+        <div class="lb-name">${p.name || 'Гравець'}</div>
+        <div class="lb-correct">${p.score || 0} балів</div>
+      </div>`
+    ).join('');
+    set(ref(db, `games/${gameCode}/status`), 'finished');
+  } else {
+    showScreen('screenLeaderboard');
+    document.getElementById('lbAfter').textContent = currentQ + 1;
+    document.getElementById('midLeaderboard').innerHTML = sorted.slice(0, 10).map((p, i) =>
+      `<div class="lb-row">
+        <div class="lb-rank ${i===0?'gold':i===1?'silver':i===2?'bronze':''}">${ranks[i] || (i+1)}</div>
+        <div class="lb-name">${p.name || 'Гравець'}</div>
+        <div class="lb-score">${p.score || 0}</div>
+      </div>`
+    ).join('');
+    document.getElementById('continueBtn').textContent =
+      currentQ + 1 < QUESTIONS.length ? `Питання ${currentQ + 2} →` : '🏆 Фінальний результат';
+  }
+}
+
+window.continueToNext = function() {
+  if (currentQ + 1 < QUESTIONS.length) {
+    showQuestion(currentQ + 1);
+  } else {
+    showLeaderboard(true);
+  }
+};
+
+window.resetGame = async function() {
+  gameCode = makeCode();
+  localStorage.setItem('quizHostCode', gameCode);
+  location.reload();
+};
+
+window.copyLink = function() {
+  navigator.clipboard.writeText(playerUrl);
+  alert('Посилання скопійовано!');
+};
+</script>
+</body>
+</html>
